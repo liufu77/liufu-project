@@ -354,6 +354,12 @@
                     <div class="preview-info" id="previewInfo"></div>
                 </div>
 
+                <div class="form-group" style="margin-top:15px;">
+                    <label>病害特征描述（必填，用于AI诊断）</label>
+                    <textarea id="diseaseDesc" style="width:100%;padding:10px;border:1px solid #4a7c4a;border-radius:6px;background:rgba(0,0,0,0.3);color:#e0e0e0;font-size:0.9rem;resize:vertical;min-height:80px;" placeholder="请描述病害特征，如：叶片出现褐色斑点，边缘发黄，茎部有凹陷病斑..."></textarea>
+                    <div class="sensor-note" style="margin-top:5px;">💡 由于DeepSeek API暂不支持图片多模态，请详细描述病害特征以获得准确诊断</div>
+                </div>
+
                 <button class="analyze-btn" id="analyzeBtn" disabled>
                     🔍 开始智能分析
                 </button>
@@ -633,8 +639,12 @@
         }
 
         function checkCanAnalyze() {
-            analyzeBtn.disabled = !(apiKeyInput.value.trim() && selectedFile);
+            const diseaseDesc = document.getElementById('diseaseDesc').value.trim();
+            analyzeBtn.disabled = !(apiKeyInput.value.trim() && diseaseDesc);
         }
+
+        // 病害描述输入监听
+        document.getElementById('diseaseDesc').addEventListener('input', checkCanAnalyze);
 
         // ==================== 本地图片库初筛 ====================
         function performLocalMatch(file) {
@@ -675,8 +685,9 @@
                 showError('请输入 API 密钥');
                 return;
             }
-            if (!selectedFile) {
-                showError('请上传植物图片');
+            const diseaseDesc = document.getElementById('diseaseDesc').value.trim();
+            if (!diseaseDesc) {
+                showError('请描述病害特征');
                 return;
             }
 
@@ -691,7 +702,8 @@
                 soilPH: document.getElementById('soilPH').value,
                 co2: document.getElementById('co2').value,
                 cropType: document.getElementById('cropType').value || '火龙果',
-                growthStage: document.getElementById('growthStage').value || '营养生长期'
+                growthStage: document.getElementById('growthStage').value || '营养生长期',
+                diseaseDesc: diseaseDesc
             };
 
             // 显示加载
@@ -701,14 +713,11 @@
             analyzeBtn.disabled = true;
 
             try {
-                // 将图片转为base64
-                const imageBase64 = await fileToBase64(selectedFile);
-
                 // 构建提示词
                 const prompt = buildPrompt(envData);
 
-                // 调用DeepSeek API
-                const result = await callDeepSeekAPI(apiKey, imageBase64, prompt);
+                // 调用DeepSeek API（纯文本模式）
+                const result = await callDeepSeekAPI(apiKey, prompt);
 
                 // 解析并展示结果
                 displayResults(result);
@@ -722,21 +731,15 @@
             }
         }
 
-        function fileToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-        }
-
         function buildPrompt(envData) {
-            return `你是一位植物病害诊断与精准农业专家。请分析上传的植物图片，并结合以下环境数据，给出综合决策建议。
+            return `你是一位植物病害诊断与精准农业专家。请根据用户描述的病害特征，结合以下环境数据，给出综合诊断和决策建议。
 
 作物信息：
 - 作物类型：${envData.cropType}
 - 生长阶段：${envData.growthStage}
+
+病害特征描述：
+${envData.diseaseDesc}
 
 当前环境参数：
 - 温度：${envData.temperature || '未检测'}°C
@@ -780,32 +783,16 @@
 }`;
         }
 
-        async function callDeepSeekAPI(apiKey, imageBase64, prompt) {
-            // DeepSeek多模态API调用
-            // 注意：DeepSeek的vision接口格式
+        async function callDeepSeekAPI(apiKey, prompt) {
+            // DeepSeek API 调用（纯文本模式）
             const apiUrl = 'https://api.deepseek.com/chat/completions';
-
-            // 将base64图片转为data URL格式
-            const imageDataUrl = imageBase64;
 
             const requestBody = {
                 model: 'deepseek-chat',
                 messages: [
                     {
                         role: 'user',
-                        content: [
-                            {
-                                type: 'image_url',
-                                image_url: {
-                                    url: imageDataUrl,
-                                    detail: 'high'
-                                }
-                            },
-                            {
-                                type: 'text',
-                                text: prompt
-                            }
-                        ]
+                        content: prompt
                     }
                 ],
                 temperature: 0.3,
