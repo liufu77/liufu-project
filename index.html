@@ -352,6 +352,11 @@
                     </select>
                 </div>
             </div>
+            <div style="margin-bottom:15px;">
+                <label style="color:#a5d6a7;font-size:0.9rem;display:block;margin-bottom:6px;">本地模型服务地址（用于病害初筛）</label>
+                <input type="text" id="localModelUrl" class="api-key-input" placeholder="如: http://localhost:5000" value="http://localhost:5000">
+                <div class="api-status" id="localModelStatus">本地模型服务状态：未检测</div>
+            </div>
             <input type="password" id="apiKey" class="api-key-input" placeholder="请输入 API 密钥">
             <div class="api-status" id="apiStatus">请输入您的 API 密钥</div>
         </section>
@@ -699,6 +704,7 @@
 
             const provider = document.getElementById('apiProvider').value;
             const model = document.getElementById('modelSelect').value;
+            const localModelUrl = document.getElementById('localModelUrl').value.trim();
 
             // 检查是否需要图片（Vision模型）
             const isVisionModel = model.includes('VL') || model.includes('GLM-4.5V') || model.includes('GLM-4.6V') || model.includes('Qwen2.5-VL');
@@ -731,8 +737,22 @@
                 // 将图片转为base64
                 const imageBase64 = await fileToBase64(selectedFile);
 
-                // 构建提示词
-                const prompt = buildPrompt(envData);
+                // 步骤1: 调用本地ResNet50模型做初筛
+                let localResult = null;
+                if (localModelUrl) {
+                    try {
+                        localResult = await callLocalModel(localModelUrl, imageBase64);
+                        if (localResult && localResult.success) {
+                            // 显示本地初筛结果
+                            showLocalResult(localResult);
+                        }
+                    } catch (e) {
+                        console.warn('本地模型调用失败:', e);
+                    }
+                }
+
+                // 步骤2: 调用AI API，将本地初筛结果作为hint传入
+                const prompt = buildPrompt(envData, localResult);
 
                 // 调用API（根据是否Vision模型决定传入图片）
                 const result = await callAIAPI(apiKey, provider, model, imageBase64, isVisionModel, prompt);
@@ -749,6 +769,69 @@
             }
         }
 
+        // 调用本地ResNet50模型进行初筛
+        async function callLocalModel(url, imageBase64) {
+            // 移除data URL前缀，只保留base64部分
+            const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+
+            const response = await fetch(`${url}/api/predict`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ image: base64Data })
+            });
+
+            if (!response.ok) {
+                throw new Error(`本地模型服务错误: ${response.status}`);
+            }
+
+            return await response.json();
+        }
+
+        // 显示本地初筛结果
+        function showLocalResult(result) {
+            const localMatchSection = document.getElementById('localMatchSection');
+            const matchTags = document.getElementById('matchTags');
+
+            if (result && result.top_predictions) {
+                matchTags.innerHTML = result.top_predictions.map(p =>
+                    `<span class="match-tag">${p.class_cn} (${(p.confidence * 100).toFixed(1)}%)</span>`
+                ).join('');
+                localMatchSection.style.display = 'block';
+            }
+        }
+
+        // 检查本地模型服务状态
+        async function checkLocalModelHealth() {
+            const url = document.getElementById('localModelUrl').value.trim();
+            const statusEl = document.getElementById('localModelStatus');
+
+            if (!url) {
+                statusEl.textContent = '本地模型服务状态：未配置';
+                statusEl.style.color = '#666';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${url}/api/health`);
+                if (response.ok) {
+                    statusEl.textContent = '✓ 本地模型服务：已连接';
+                    statusEl.style.color = '#7cb342';
+                } else {
+                    statusEl.textContent = '本地模型服务状态：连接失败';
+                    statusEl.style.color = '#ef5350';
+                }
+            } catch (e) {
+                statusEl.textContent = '本地模型服务状态：服务未启动';
+                statusEl.style.color = '#ef5350';
+            }
+        }
+
+        // 页面加载时检查本地模型服务状态
+        document.getElementById('localModelUrl').addEventListener('change', checkLocalModelHealth);
+        setTimeout(checkLocalModelHealth, 1000);
+
         function fileToBase64(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -758,7 +841,16 @@
             });
         }
 
-        function buildPrompt(envData) {
+        function buildPrompt(envData, localResult) {
+            // 如果有本地模型初筛结果，添加作为参考
+            let localHint = '';
+            if (localResult && localResult.success && localResult.top_predictions) {
+                const predictions = localResult.top_predictions.map(p =>
+                    `${p.class_cn}（置信度：${(p.confidence * 100).toFixed(1)}%）`
+                ).join('、');
+                localHint = `\n\n【本地模型初筛结果】（仅供参考）：${predictions}`;
+            }
+
             return `你是一位植物病害诊断与精准农业专家。请分析上传的植物图片，结合以下环境数据，给出综合诊断和精准决策建议。
 
 作物信息：
@@ -773,7 +865,7 @@
 - 土壤湿度：${envData.soilMoisture || '未检测'}%
 - 土壤EC：${envData.soilEC || '未检测'} mS/cm
 - 土壤pH：${envData.soilPH || '未检测'}
-- CO2浓度：${envData.co2 || '未检测'} ppm
+- CO2浓度：${envData.co2 || '未检测'} ppm${localHint}
 
 请分析图片中的植物病害情况，并以JSON格式输出以下内容（只输出JSON，不要其他内容）：
 {
