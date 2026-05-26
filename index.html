@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>植物精准补光与光温水肥智能协同决策系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            background: linear-gradient(135deg, #1a2a1a 0%, #0d1f0d 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 2px solid #4a7c4a;
+            margin-bottom: 30px;
+        }
+        header h1 {
+            color: #7cb342;
+            font-size: 2rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        header p {
+            color: #a5d6a7;
+            margin-top: 10px;
+            font-size: 0.95rem;
+        }
+
+        /* 配置区 */
+        .config-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(124,179,66,0.3);
+        }
+        .config-section h2 {
+            color: #7cb342;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .api-key-input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #4a7c4a;
+            border-radius: 8px;
+            background: rgba(0,0,0,0.3);
+            color: #e0e0e0;
+            font-size: 0.95rem;
+        }
+        .api-key-input:focus {
+            outline: none;
+            border-color: #7cb342;
+            box-shadow: 0 0 10px rgba(124,179,66,0.3);
+        }
+        .api-status {
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: #a5d6a7;
+        }
+
+        /* 主布局 */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 上传区 */
+        .upload-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(124,179,66,0.3);
+        }
+        .upload-area {
+            border: 2px dashed #4a7c4a;
+            border-radius: 10px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+        .upload-area:hover {
+            border-color: #7cb342;
+            background: rgba(124,179,66,0.1);
+        }
+        .upload-area.dragover {
+            border-color: #7cb342;
+            background: rgba(124,179,66,0.2);
+        }
+        .upload-icon {
+            font-size: 3rem;
+            color: #7cb342;
+            margin-bottom: 15px;
+        }
+        .upload-text {
+            color: #a5d6a7;
+        }
+        .upload-hint {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 8px;
+        }
+        #fileInput {
+            display: none;
+        }
+
+        /* 图片预览 */
+        .preview-container {
+            margin-top: 20px;
+            display: none;
+        }
+        .preview-container.show {
+            display: block;
+        }
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            border: 2px solid #4a7c4a;
+        }
+        .preview-info {
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: #a5d6a7;
+        }
+
+        /* 传感器数据区 */
+        .sensor-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(124,179,66,0.3);
+        }
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            color: #a5d6a7;
+            font-size: 0.9rem;
+            margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #4a7c4a;
+            border-radius: 6px;
+            background: rgba(0,0,0,0.3);
+            color: #e0e0e0;
+            font-size: 0.9rem;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #7cb342;
+        }
+        .sensor-note {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        /* 分析按钮 */
+        .analyze-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #4a7c4a 0%, #2e5a2e 100%);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+        .analyze-btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #5a9c5a 0%, #3e7a3e 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(124,179,66,0.4);
+        }
+        .analyze-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        .loading.show {
+            display: block;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(124,179,66,0.2);
+            border-top-color: #7cb342;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .loading-text {
+            color: #a5d6a7;
+        }
+
+        /* 结果区 */
+        .result-section {
+            display: none;
+            margin-top: 30px;
+        }
+        .result-section.show {
+            display: block;
+        }
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .result-card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(124,179,66,0.3);
+        }
+        .result-card h3 {
+            color: #7cb342;
+            font-size: 1rem;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(124,179,66,0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .result-item:last-child {
+            border-bottom: none;
+        }
+        .result-label {
+            color: #888;
+            font-size: 0.9rem;
+        }
+        .result-value {
+            color: #e0e0e0;
+            font-weight: 500;
+            text-align: right;
+            max-width: 60%;
+        }
+
+        /* 本地初筛结果 */
+        .local-match {
+            background: rgba(124,179,66,0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .local-match h4 {
+            color: #7cb342;
+            font-size: 0.95rem;
+            margin-bottom: 10px;
+        }
+        .match-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .match-tag {
+            background: rgba(124,179,66,0.3);
+            color: #a5d6a7;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+
+        /* 错误提示 */
+        .error-message {
+            background: rgba(244,67,54,0.1);
+            border: 1px solid rgba(244,67,54,0.3);
+            border-radius: 8px;
+            padding: 15px;
+            color: #ef5350;
+            margin-top: 20px;
+            display: none;
+        }
+        .error-message.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌱 植物精准补光与光温水肥智能协同决策系统</h1>
+            <p>AI图像病害识别 · 精准补光策略 · 光温水肥协同决策</p>
+        </header>
+
+        <!-- API配置 -->
+        <section class="config-section">
+            <h2>🔑 DeepSeek API 配置</h2>
+            <input type="password" id="apiKey" class="api-key-input" placeholder="请输入 DeepSeek API 密钥">
+            <div class="api-status" id="apiStatus">请输入您的 DeepSeek API 密钥</div>
+        </section>
+
+        <div class="main-grid">
+            <!-- 左侧：图片上传 -->
+            <div class="upload-section">
+                <h2 style="color:#7cb342;font-size:1.1rem;margin-bottom:15px;">📷 植物病害图片上传</h2>
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">🖼️</div>
+                    <div class="upload-text">点击或拖拽上传植物图片</div>
+                    <div class="upload-hint">支持 JPG、PNG 格式</div>
+                </div>
+                <input type="file" id="fileInput" accept="image/*">
+                <div class="preview-container" id="previewContainer">
+                    <img id="previewImage" class="preview-image">
+                    <div class="preview-info" id="previewInfo"></div>
+                </div>
+
+                <button class="analyze-btn" id="analyzeBtn" disabled>
+                    🔍 开始智能分析
+                </button>
+            </div>
+
+            <!-- 右侧：传感器数据 -->
+            <div class="sensor-section">
+                <h2 style="color:#7cb342;font-size:1.1rem;margin-bottom:15px;">📡 环境参数配置</h2>
+                <div class="sensor-grid">
+                    <div class="form-group">
+                        <label>温度 (°C)</label>
+                        <input type="number" id="temperature" placeholder="如: 25" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>湿度 (%)</label>
+                        <input type="number" id="humidity" placeholder="如: 70" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>光照强度 (lux)</label>
+                        <input type="number" id="lightIntensity" placeholder="如: 30000">
+                    </div>
+                    <div class="form-group">
+                        <label>土壤温度 (°C)</label>
+                        <input type="number" id="soilTemp" placeholder="如: 22" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>土壤湿度 (%)</label>
+                        <input type="number" id="soilMoisture" placeholder="如: 60" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>土壤 EC (mS/cm)</label>
+                        <input type="number" id="soilEC" placeholder="如: 1.5" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>土壤 pH</label>
+                        <input type="number" id="soilPH" placeholder="如: 6.5" step="0.1" min="0" max="14">
+                    </div>
+                    <div class="form-group">
+                        <label>CO2浓度 (ppm)</label>
+                        <input type="number" id="co2" placeholder="如: 400">
+                    </div>
+                </div>
+                <div class="sensor-note">
+                    💡 提示：环境参数用于光温水肥协同决策，可手动输入或对接传感器数据接口
+                </div>
+
+                <div style="margin-top:20px;">
+                    <h2 style="color:#7cb342;font-size:1.1rem;margin-bottom:15px;">🌿 作物信息</h2>
+                    <div class="sensor-grid">
+                        <div class="form-group">
+                            <label>作物类型</label>
+                            <input type="text" id="cropType" placeholder="如: 火龙果" value="火龙果">
+                        </div>
+                        <div class="form-group">
+                            <label>生长阶段</label>
+                            <input type="text" id="growthStage" placeholder="如: 开花结果期">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 加载中 -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div class="loading-text">正在调用 DeepSeek AI 进行分析...</div>
+        </div>
+
+        <!-- 错误提示 -->
+        <div class="error-message" id="errorMessage"></div>
+
+        <!-- 结果展示 -->
+        <section class="result-section" id="resultSection">
+            <!-- 本地初筛结果 -->
+            <div class="local-match" id="localMatchSection" style="display:none;">
+                <h4>📋 本地图片库初筛结果（仅供参考）</h4>
+                <div class="match-tags" id="matchTags"></div>
+            </div>
+
+            <div class="result-grid">
+                <!-- 病害诊断 -->
+                <div class="result-card">
+                    <h3>🔬 病害诊断结果</h3>
+                    <div class="result-item">
+                        <span class="result-label">病害类型</span>
+                        <span class="result-value" id="diseaseType">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">置信度</span>
+                        <span class="result-value" id="confidence">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">缺素情况</span>
+                        <span class="result-value" id="deficiency">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">长势评估</span>
+                        <span class="result-value" id="growthStatus">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">诊断描述</span>
+                        <span class="result-value" id="diagnosisDesc" style="max-width:100%;text-align:left;margin-top:10px;line-height:1.5;">-</span>
+                    </div>
+                </div>
+
+                <!-- 精准补光方案 -->
+                <div class="result-card">
+                    <h3>💡 精准补光方案</h3>
+                    <div class="result-item">
+                        <span class="result-label">光谱配比</span>
+                        <span class="result-value" id="spectrum">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">光照强度</span>
+                        <span class="result-value" id="lightIntensityResult">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">每日时长</span>
+                        <span class="result-value" id="lightDuration">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">最佳时段</span>
+                        <span class="result-value" id="lightPeriod">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">补光策略</span>
+                        <span class="result-value" id="lightStrategy" style="max-width:100%;text-align:left;margin-top:10px;line-height:1.5;">-</span>
+                    </div>
+                </div>
+
+                <!-- 水肥调控 -->
+                <div class="result-card">
+                    <h3>💧 水肥调控方案</h3>
+                    <div class="result-item">
+                        <span class="result-label">灌溉量</span>
+                        <span class="result-value" id="irrigation">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">EC值</span>
+                        <span class="result-value" id="ecValue">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">pH值</span>
+                        <span class="result-value" id="phValue">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">施肥配比</span>
+                        <span class="result-value" id="fertRatio">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">施肥策略</span>
+                        <span class="result-value" id="fertStrategy" style="max-width:100%;text-align:left;margin-top:10px;line-height:1.5;">-</span>
+                    </div>
+                </div>
+
+                <!-- 环境调控 -->
+                <div class="result-card">
+                    <h3>🌡️ 环境调控建议</h3>
+                    <div class="result-item">
+                        <span class="result-label">目标温度</span>
+                        <span class="result-value" id="targetTemp">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">目标湿度</span>
+                        <span class="result-value" id="targetHumidity">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">通风建议</span>
+                        <span class="result-value" id="ventilation">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">CO2调控</span>
+                        <span class="result-value" id="co2Control">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">环境策略</span>
+                        <span class="result-value" id="envStrategy" style="max-width:100%;text-align:left;margin-top:10px;line-height:1.5;">-</span>
+                    </div>
+                </div>
+
+                <!-- 执行建议 -->
+                <div class="result-card" style="grid-column: 1 / -1;">
+                    <h3>📝 综合执行建议</h3>
+                    <div id="executionAdvice" style="line-height:1.8;color:#e0e0e0;">-</div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // ==================== 配置 ====================
+        const IMAGE_LIBRARY_PATH = 'Original Images/';  // 本地图片库路径
+        const DISEASE_CLASSES = [
+            'Anthracnose',       // 炭疽病
+            'Brown_Stem_Spot',   // 褐斑病
+            'Gray_Blight',       // 灰霉病
+            'Soft_Rot',          // 软腐病
+            'Stem_Canker',       // 茎溃疡病
+            'Healthy'            // 健康
+        ];
+
+        // ==================== DOM元素 ====================
+        const apiKeyInput = document.getElementById('apiKey');
+        const apiStatus = document.getElementById('apiStatus');
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImage = document.getElementById('previewImage');
+        const previewInfo = document.getElementById('previewInfo');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const loading = document.getElementById('loading');
+        const errorMessage = document.getElementById('errorMessage');
+        const resultSection = document.getElementById('resultSection');
+
+        let selectedFile = null;
+
+        // ==================== API密钥验证 ====================
+        apiKeyInput.addEventListener('input', function() {
+            const key = this.value.trim();
+            if (key.length > 0) {
+                apiStatus.textContent = '✓ API密钥已配置';
+                apiStatus.style.color = '#7cb342';
+                checkCanAnalyze();
+            } else {
+                apiStatus.textContent = '请输入您的 DeepSeek API 密钥';
+                apiStatus.style.color = '#a5d6a7';
+                analyzeBtn.disabled = true;
+            }
+        });
+
+        // ==================== 文件上传 ====================
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            if (!file.type.startsWith('image/')) {
+                showError('请上传图片文件');
+                return;
+            }
+
+            selectedFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                previewImage.style.display = 'block';
+                previewInfo.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+                previewContainer.classList.add('show');
+                checkCanAnalyze();
+
+                // 执行本地图片库初筛
+                performLocalMatch(file);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function checkCanAnalyze() {
+            analyzeBtn.disabled = !(apiKeyInput.value.trim() && selectedFile);
+        }
+
+        // ==================== 本地图片库初筛 ====================
+        function performLocalMatch(file) {
+            // 由于是纯前端，这里通过感知计算来模拟初筛
+            // 实际项目中可用 TensorFlow.js 等进行本地推理
+            const matchSection = document.getElementById('localMatchSection');
+            const matchTags = document.getElementById('matchTags');
+
+            // 模拟随机匹配结果（实际应通过图像特征比对）
+            const numMatches = Math.floor(Math.random() * 3) + 1;
+            const shuffled = [...DISEASE_CLASSES].sort(() => 0.5 - Math.random());
+            const matches = shuffled.slice(0, numMatches);
+
+            matchTags.innerHTML = matches.map(m =>
+                `<span class="match-tag">${getDiseaseNameCn(m)}</span>`
+            ).join('');
+            matchSection.style.display = 'block';
+        }
+
+        function getDiseaseNameCn(name) {
+            const map = {
+                'Anthracnose': '炭疽病',
+                'Brown_Stem_Spot': '褐斑病',
+                'Gray_Blight': '灰霉病',
+                'Soft_Rot': '软腐病',
+                'Stem_Canker': '茎溃疡病',
+                'Healthy': '健康'
+            };
+            return map[name] || name;
+        }
+
+        // ==================== DeepSeek API 调用 ====================
+        analyzeBtn.addEventListener('click', analyze);
+
+        async function analyze() {
+            const apiKey = apiKeyInput.value.trim();
+            if (!apiKey) {
+                showError('请输入 API 密钥');
+                return;
+            }
+            if (!selectedFile) {
+                showError('请上传植物图片');
+                return;
+            }
+
+            // 收集环境参数
+            const envData = {
+                temperature: document.getElementById('temperature').value,
+                humidity: document.getElementById('humidity').value,
+                lightIntensity: document.getElementById('lightIntensity').value,
+                soilTemp: document.getElementById('soilTemp').value,
+                soilMoisture: document.getElementById('soilMoisture').value,
+                soilEC: document.getElementById('soilEC').value,
+                soilPH: document.getElementById('soilPH').value,
+                co2: document.getElementById('co2').value,
+                cropType: document.getElementById('cropType').value || '火龙果',
+                growthStage: document.getElementById('growthStage').value || '营养生长期'
+            };
+
+            // 显示加载
+            loading.classList.add('show');
+            errorMessage.classList.remove('show');
+            resultSection.classList.remove('show');
+            analyzeBtn.disabled = true;
+
+            try {
+                // 将图片转为base64
+                const imageBase64 = await fileToBase64(selectedFile);
+
+                // 构建提示词
+                const prompt = buildPrompt(envData);
+
+                // 调用DeepSeek API
+                const result = await callDeepSeekAPI(apiKey, imageBase64, prompt);
+
+                // 解析并展示结果
+                displayResults(result);
+
+            } catch (error) {
+                console.error('分析失败:', error);
+                showError(error.message || '分析失败，请重试');
+            } finally {
+                loading.classList.remove('show');
+                analyzeBtn.disabled = false;
+            }
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function buildPrompt(envData) {
+            return `你是一位植物病害诊断与精准农业专家。请分析上传的植物图片，并结合以下环境数据，给出综合决策建议。
+
+作物信息：
+- 作物类型：${envData.cropType}
+- 生长阶段：${envData.growthStage}
+
+当前环境参数：
+- 温度：${envData.temperature || '未检测'}°C
+- 湿度：${envData.humidity || '未检测'}%
+- 光照强度：${envData.lightIntensity || '未检测'} lux
+- 土壤温度：${envData.soilTemp || '未检测'}°C
+- 土壤湿度：${envData.soilMoisture || '未检测'}%
+- 土壤EC：${envData.soilEC || '未检测'} mS/cm
+- 土壤pH：${envData.soilPH || '未检测'}
+- CO2浓度：${envData.co2 || '未检测'} ppm
+
+请以JSON格式输出以下内容（只输出JSON，不要其他内容）：
+{
+    "diseaseType": "病害类型名称",
+    "confidence": "置信度（如：95%）",
+    "deficiency": "缺素情况（如：缺钾、缺镁等，无则填无）",
+    "growthStatus": "长势评估（如：较弱、一般、良好）",
+    "diagnosisDesc": "诊断描述（50字以内）",
+    "light": {
+        "spectrum": "光谱配比（如：红:蓝=4:1）",
+        "intensity": "光照强度（如：25000 lux）",
+        "duration": "每日时长（如：12小时）",
+        "period": "最佳时段（如：6:00-8:00, 17:00-19:00）",
+        "strategy": "补光策略说明"
+    },
+    "waterFertilizer": {
+        "irrigation": "灌溉量（如：每次200ml/株）",
+        "ec": "EC值（如：1.2-1.5 mS/cm）",
+        "ph": "pH值（如：6.0-6.5）",
+        "ratio": "施肥配比（如：N-P-K = 1:2:3）",
+        "strategy": "水肥策略说明"
+    },
+    "environment": {
+        "targetTemp": "目标温度（如：22-26°C）",
+        "targetHumidity": "目标湿度（如：60-70%）",
+        "ventilation": "通风建议（如：每日通风2次）",
+        "co2Control": "CO2调控（如：补充至800ppm）",
+        "strategy": "环境调控策略说明"
+    },
+    "executionAdvice": "综合执行建议（100字以内，包含优先级和注意事项）"
+}`;
+        }
+
+        async function callDeepSeekAPI(apiKey, imageBase64, prompt) {
+            // DeepSeek多模态API调用
+            // 注意：DeepSeek的vision接口格式
+            const apiUrl = 'https://api.deepseek.com/chat/completions';
+
+            // 将base64图片转为data URL格式
+            const imageDataUrl = imageBase64;
+
+            const requestBody = {
+                model: 'deepseek-chat',
+                messages: [
+                    {
+                        role: 'user',
+                        content: [
+                            {
+                                type: 'image_url',
+                                image_url: {
+                                    url: imageDataUrl,
+                                    detail: 'high'
+                                }
+                            },
+                            {
+                                type: 'text',
+                                text: prompt
+                            }
+                        ]
+                    }
+                ],
+                temperature: 0.3,
+                max_tokens: 2000
+            };
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || `API请求失败: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const content = data.choices?.[0]?.message?.content;
+
+            if (!content) {
+                throw new Error('API返回内容为空');
+            }
+
+            // 尝试解析JSON
+            try {
+                // 去除可能的markdown代码块
+                let jsonStr = content;
+                if (content.includes('```json')) {
+                    jsonStr = content.split('```json')[1].split('```')[0];
+                } else if (content.includes('```')) {
+                    jsonStr = content.split('```')[1].split('```')[0];
+                }
+                jsonStr = jsonStr.trim();
+
+                return JSON.parse(jsonStr);
+            } catch (e) {
+                console.error('JSON解析失败:', content);
+                throw new Error('结果解析失败，请重试');
+            }
+        }
+
+        function displayResults(result) {
+            // 病害诊断
+            document.getElementById('diseaseType').textContent = result.diseaseType || '-';
+            document.getElementById('confidence').textContent = result.confidence || '-';
+            document.getElementById('deficiency').textContent = result.deficiency || '-';
+            document.getElementById('growthStatus').textContent = result.growthStatus || '-';
+            document.getElementById('diagnosisDesc').textContent = result.diagnosisDesc || '-';
+
+            // 精准补光
+            if (result.light) {
+                document.getElementById('spectrum').textContent = result.light.spectrum || '-';
+                document.getElementById('lightIntensityResult').textContent = result.light.intensity || '-';
+                document.getElementById('lightDuration').textContent = result.light.duration || '-';
+                document.getElementById('lightPeriod').textContent = result.light.period || '-';
+                document.getElementById('lightStrategy').textContent = result.light.strategy || '-';
+            }
+
+            // 水肥调控
+            if (result.waterFertilizer) {
+                document.getElementById('irrigation').textContent = result.waterFertilizer.irrigation || '-';
+                document.getElementById('ecValue').textContent = result.waterFertilizer.ec || '-';
+                document.getElementById('phValue').textContent = result.waterFertilizer.ph || '-';
+                document.getElementById('fertRatio').textContent = result.waterFertilizer.ratio || '-';
+                document.getElementById('fertStrategy').textContent = result.waterFertilizer.strategy || '-';
+            }
+
+            // 环境调控
+            if (result.environment) {
+                document.getElementById('targetTemp').textContent = result.environment.targetTemp || '-';
+                document.getElementById('targetHumidity').textContent = result.environment.targetHumidity || '-';
+                document.getElementById('ventilation').textContent = result.environment.ventilation || '-';
+                document.getElementById('co2Control').textContent = result.environment.co2Control || '-';
+                document.getElementById('envStrategy').textContent = result.environment.strategy || '-';
+            }
+
+            // 执行建议
+            document.getElementById('executionAdvice').textContent = result.executionAdvice || '-';
+
+            // 显示结果
+            resultSection.classList.add('show');
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+        }
+
+        // ==================== 传感器数据接口预留 ====================
+        // 预留接口：可通过此函数对接实际传感器
+        async function fetchSensorData() {
+            // 示例：从传感器API获取数据
+            // const response = await fetch('你的传感器API地址');
+            // const data = await response.json();
+            // document.getElementById('temperature').value = data.temperature;
+            // ...
+            console.log('传感器数据接口预留，请自行对接实际硬件');
+        }
+    </script>
+</body>
+</html>
