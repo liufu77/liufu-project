@@ -1,4 +1,4 @@
-import math
+import pandas as pd
 import streamlit as st
 
 st.title("🔮 元素测试仪")
