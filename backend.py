@@ -1,6 +1,6 @@
 """
 植物病害本地初筛服务
-使用ResNet50模型对上传的图片进行病害分类
+使用MobileNetV2模型对上传的图片进行病害分类
 """
 
 import torch
@@ -14,7 +14,7 @@ import os
 
 # ==================== 配置 ====================
 MODEL_PATH = 'best_model.pth'  # 模型路径
-IMAGE_SIZE = 224
+IMAGE_SIZE = 128  # 与训练时一致
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # 类别名称映射
@@ -22,9 +22,9 @@ CLASS_NAMES = [
     'Anthracnose',       # 炭疽病
     'Brown_Stem_Spot',   # 褐斑病
     'Gray_Blight',       # 灰霉病
+    'Healthy',           # 健康
     'Soft_Rot',          # 软腐病
-    'Stem_Canker',       # 茎溃疡病
-    'Healthy'            # 健康
+    'Stem_Canker'        # 茎溃疡病
 ]
 
 # 中文名称映射
@@ -39,17 +39,8 @@ CLASS_NAMES_CN = {
 
 # ==================== 模型定义 ====================
 def create_model(num_classes=6):
-    """创建ResNet50模型"""
-    model = models.resnet50(weights=None)  # 不加载预训练权重
-    
-    # 替换分类头
-    model.fc = nn.Sequential(
-        nn.Linear(2048, 512),
-        nn.ReLU(),
-        nn.Dropout(0.5),
-        nn.Linear(512, num_classes)
-    )
-    
+    """创建MobileNetV2模型"""
+    model = models.mobilenet_v2(num_classes=num_classes)  # 直接指定类别数
     return model
 
 # ==================== 加载模型 ====================

@@ -1,0 +1,12 @@
+{
+    "classes": ["Anthracnose", "Brown_Stem_Spot", "Gray_Blight", "Healthy", "Soft_Rot", "Stem_Canker"],
+    "class_mapping": {
+        "Anthracnose": "炭疽病",
+        "Brown_Stem_Spot": "褐斑病",
+        "Gray_Blight": "灰霉病",
+        "Healthy": "健康",
+        "Soft_Rot": "软腐病",
+        "Stem_Canker": "茎溃疡病"
+    },
+    "num_classes": 6
+}

@@ -23,8 +23,8 @@ plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
 
 # ==================== 配置参数 ====================
-# 请修改为你的数据集路径
-DATA_DIR = r'E:\\VSCode\\火龙果识别项目\\数据\\Dragon Fruit (Pitahaya)\\Original Images'  
+# 数据集路径（已修改为当前项目路径）
+DATA_DIR = r'd:\项目\实验室-智耕兴农\项目材料\植物精准补光与光温水肥智能协同决策大模型\Original Images'  
 
 NUM_CLASSES = 6
 BATCH_SIZE = 32

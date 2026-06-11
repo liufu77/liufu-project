@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>植物精准补光与光温水肥智能协同决策系统</title>
+    <title>植物精准补光与光温水肥智能协同决策大模型</title>
     <style>
         * {
             margin: 0;
@@ -328,7 +328,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>🌱 植物精准补光与光温水肥智能协同决策系统</h1>
+            <h1>🌱 植物精准补光与光温水肥智能协同决策大模型</h1>
             <p>AI图像病害识别 · 精准补光策略 · 光温水肥协同决策</p>
         </header>
 
@@ -713,6 +713,13 @@
                 return;
             }
 
+            // DeepSeek不支持图片输入，必须使用本地模型进行病害识别
+            const isDeepSeek = provider === 'deepseek';
+            if (isDeepSeek && !localModelUrl) {
+                showError('DeepSeek不支持图片输入，请配置本地模型服务地址');
+                return;
+            }
+
             // 收集环境参数
             const envData = {
                 temperature: document.getElementById('temperature').value,
@@ -737,7 +744,7 @@
                 // 将图片转为base64
                 const imageBase64 = await fileToBase64(selectedFile);
 
-                // 步骤1: 调用本地ResNet50模型做初筛
+                // 步骤1: 调用本地模型做初筛（DeepSeek必须使用，其他可选）
                 let localResult = null;
                 if (localModelUrl) {
                     try {
@@ -745,17 +752,22 @@
                         if (localResult && localResult.success) {
                             // 显示本地初筛结果
                             showLocalResult(localResult);
+                        } else if (isDeepSeek) {
+                            // DeepSeek必须有本地模型结果
+                            throw new Error('本地模型识别失败，请检查服务是否正常');
                         }
                     } catch (e) {
                         console.warn('本地模型调用失败:', e);
+                        if (isDeepSeek) {
+                            throw e;
+                        }
                     }
                 }
 
-                // 步骤2: 调用AI API，将本地初筛结果作为hint传入
+                // 步骤2: 调用AI API
+                // DeepSeek不支持图片，只传文字；Vision模型可以传图片
                 const prompt = buildPrompt(envData, localResult);
-
-                // 调用API（根据是否Vision模型决定传入图片）
-                const result = await callAIAPI(apiKey, provider, model, imageBase64, isVisionModel, prompt);
+                const result = await callAIAPI(apiKey, provider, model, isDeepSeek ? null : imageBase64, !isDeepSeek && isVisionModel, prompt);
 
                 // 解析并展示结果
                 displayResults(result);
@@ -844,14 +856,18 @@
         function buildPrompt(envData, localResult) {
             // 如果有本地模型初筛结果，添加作为参考
             let localHint = '';
+            let analysisSource = '请分析上传的植物图片';
+            
             if (localResult && localResult.success && localResult.top_predictions) {
                 const predictions = localResult.top_predictions.map(p =>
                     `${p.class_cn}（置信度：${(p.confidence * 100).toFixed(1)}%）`
                 ).join('、');
-                localHint = `\n\n【本地模型初筛结果】（仅供参考）：${predictions}`;
+                localHint = `\n\n【本地AI模型识别结果】：${predictions}`;
+                // 如果有本地模型结果，使用它作为主要分析依据
+                analysisSource = `根据本地AI模型识别结果（${localResult.predicted_class_cn}，置信度${(localResult.confidence * 100).toFixed(1)}%）`;
             }
 
-            return `你是一位植物病害诊断与精准农业专家。请分析上传的植物图片，结合以下环境数据，给出综合诊断和精准决策建议。
+            return `你是一位植物病害诊断与精准农业专家。${analysisSource}，结合以下环境数据，给出综合诊断和精准决策建议。
 
 作物信息：
 - 作物类型：${envData.cropType}
@@ -867,7 +883,7 @@
 - 土壤pH：${envData.soilPH || '未检测'}
 - CO2浓度：${envData.co2 || '未检测'} ppm${localHint}
 
-请分析图片中的植物病害情况，并以JSON格式输出以下内容（只输出JSON，不要其他内容）：
+请分析植物病害情况，并以JSON格式输出以下内容（只输出JSON，不要其他内容）：
 {
     "diseaseType": "病害类型名称",
     "confidence": "置信度（如：95%）",
