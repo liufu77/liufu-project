@@ -1,30 +1,45 @@
-# 导入库
 import pandas as pd
 import streamlit as st
 from pathlib import Path
 
-# 1. 定义文件路径，读取原始数据（跳过前12行说明表头）
+# 读取原始数据
 csv_path = Path("assets/nasa_power_beijing_2024_casefile.csv")
 df_raw = pd.read_csv(csv_path, skiprows=12)
+# 拷贝原始数据，用于清洗（不破坏原数据）
+df_clean = df_raw.copy()
 
-# 2. 页面标题
-st.title("NASA数据侦探台 - P2-1 原始数据侦查")
+# ========== 数据清洗核心逻辑（课件规则落地） ==========
+# 需要清洗的数值列：气温、湿度、降水、辐射
+num_cols = ["T2M", "RH2M", "PRECTOTCORR", "ALLSKY_SFC_SW_DWN"]
+for col in num_cols:
+    # errors="coerce"：非法字符串转为 NaN（缺失值）
+    df_clean[col] = pd.to_numeric(df_clean[col], errors="coerce")
 
-# 3. 数据基础信息
-st.subheader("1. 数据基本信息")
-st.write(f"数据表行列数：{df_raw.shape}")
-st.write("所有列名：", list(df_raw.columns))
+# 新增标记列：标记是否为可疑数据
+df_clean["is_suspect"] = df_clean["QUALITY_FLAG"] != "ok"
 
-# 4. 展示原始数据
-st.subheader("2. 原始数据表格")
-st.dataframe(df_raw)
+# ========== Streamlit 页面：清洗前后对比 ==========
+st.title("NASA数据侦探台 - P2-2 数据清洗（缺失值&异常处理）")
 
-# 5. 统计每列缺失值数量
-st.subheader("3. 缺失值统计")
-missing_count = df_raw.isna().sum().rename("缺失数量")
-st.dataframe(missing_count)
+# 分两栏展示：原始数据 | 清洗后数据
+col1, col2 = st.columns(2)
+with col1:
+    st.subheader("原始脏数据")
+    st.dataframe(df_raw[df_raw["QUALITY_FLAG"] != "ok"])
 
-# 6. 筛选嫌疑数据（QUALITY_FLAG 不为 ok 的脏数据）
-st.subheader("4. 可疑记录筛选")
-suspect_data = df_raw[df_raw["QUALITY_FLAG"] != "ok"]
-st.dataframe(suspect_data)
+with col2:
+    st.subheader("清洗后数据")
+    st.dataframe(df_clean[df_clean["QUALITY_FLAG"] != "ok"])
+
+# 展示完整清洗后数据
+st.subheader("完整清洗后数据表")
+st.dataframe(df_clean.head(10))
+
+# 清洗规则说明（对应课件"人话规则"）
+st.subheader("清洗规则说明")
+st.markdown("""
+1. 气温/湿度空值：统一转为 NaN 保留，不随意填充；
+2. 降水 `trace`、辐射 `MISSING`、带单位字符串（如0.21C）：转为缺失值 NaN；
+3. 异常极值：仅标记，不直接删除；
+4. 新增 `is_suspect` 列，永久标记可疑记录。
+""")
